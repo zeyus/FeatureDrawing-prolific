@@ -1,0 +1,18 @@
+{{ block title }}
+{{ page_title }}
+{{ endblock }}
+
+{{ block content }}
+    <!-- loop through stimuli -->
+    <div class="container">
+        <div class="row">
+        {{ for stimulus in stimuli }}
+        <div class="col-6">
+            <img src="{{ static stimulus.stim }}" class="w-100 img-responsive {{ stimulus.class }}" />
+            </div> 
+        {{ endfor }}
+        </div>  
+
+    </div>
+    {{ next_button }}
+{{ endblock }}

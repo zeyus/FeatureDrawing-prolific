@@ -1,0 +1,140 @@
+{{ block title }}
+    Consent Form
+{{ endblock }}
+
+{{ block content }}
+    <style>
+        ol {
+            counter-reset: list;
+        }
+        ol > li {
+            list-style: none;
+            position: relative;
+        }
+        ol > li:before {
+            counter-increment: list;
+            content: counter(list, upper-alpha) ") ";
+            position: absolute;
+            left: -1.4em;
+        }
+        #prev-button {
+            display: none;
+        }
+    </style>
+    <div class="container">
+        <div class="h2" id="consent-section-title">1. Title of the research</div>
+        <div id="consent-section-content"><p>You are being invited to take part in the research study <em>Properties and Functions of Animal Drawings</em>. We would like to ask you for your consent to participate in the study and for us to treat your data in agreement with data protection legislation. Before you decide to participate in this study, it is important that you understand why the research is being done and what it <strong>will</strong> involve. Please take the time to read the following information carefully.</p></div>
+        <div class="row">
+            <div class="col-6">
+                <button class="btn btn-secondary" id="prev-button" type="button">&lt; Previous</button>
+            </div>
+            <div class="col-6 text-end">
+                <button class="btn btn-primary" id="next-button" type="button">Next &gt;</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // define an array of consent sections
+        const consentSections = [
+            {
+                title:   "Title of the research",
+                content: "<p>You are being invited to take part in the research study <em>Properties and Functions of Animal Drawings</em>. We would like to ask you for your consent to participate in the study and for us to treat your data in agreement with data protection legislation. Before you decide to participate in this study, it is important that you understand why the research is being done and what it <strong>will</strong> involve. Please take the time to read the following information carefully.</p>"
+            },
+            {
+                title:   "Project description and aim of the study",
+                content: "<p>The aim of this study is to further our understanding of the relationship between the <em>purpose</em> of <em>drawing</em> (the particular communicative or aesthetic goal of producing a drawing) and <em>properties</em> of the resulting drawings. You will be making line drawings of particular animal species (bison, horses, deers, and ibexes). By comparing drawings produced under different instructions, we seek to investigate variations in how visual information in drawings is distributed relative to their function. These experimental observations can assist us in making inferences about the original intentions behind cave art from the Upper Palaeolithic.</p>" +
+                         "<p>The study is part of a larger EU ERC project, eSYMb: The Evolution of Early Symbolic Behaviour, awarded to Professor Kristian Tylén, which integrates insights and methods from cognitive science and archaeology to inform questions about the evolution of symbolic cognition in the Palaeolithic. Your participation will benefit researchers in the project as well as a general audience from a diverse field interested in studies of human evolution.</p>"
+            },
+            {
+                title:   "Data controller, research group and principal investigator",
+                content: "<p>Aarhus University is Data controller for the processing of your personal data. The study group, consisting of Lærke Brædder, Izzy Wisher, Murillo Pagnotta, and Kristian Tylén is responsible for the study (hereinafter “study group”). The principal investigator is Kristian Tylén, Jens Chr. Skous Vej 2, building 1485, 636, on phone: <a href='tel:+4526455032' target='_blank'>+45 26455032</a>, email <a href='mailto:kristian@cc.au.dk' target='_blank'>kristian@cc.au.dk</a></p>" +
+                         "<p>Other researchers: Lærke Brædder, <a href='mailto:201906517@post.au.dk' target='_blank'>201906517@post.au.dk</a>; Wisher, <a href='mailto:izzywisher@cc.au.dk' target='_blank'>izzywisher@cc.au.dk</a>; Murillo Pagnotta, <a href='mailto:murillo@cc.au.dk' target='_blank'>murillo@cc.au.dk</a>.</p>"
+            },
+            {
+                title:   "Study procedure",
+                content: "<p>You will be randomly assigned to one of three conditions: 1) the Species Recognition Condition, 2) the Animal Behaviour Condition, and 3) the Aesthetic Appreciation Condition. Across all conditions, you will be presented with images of animals, and instructed to make line drawings of them. More detailed instructions will be provided right before the experiment starts.</p>"
+            },
+            {
+                title:   "Benefits and risks",
+                content: "<p>This study informs fundamental discussions about the evolution of human cognition and in particular the original purpose of depicting animals in cave art from the Upper Palaeolithic period. Findings will thus be of great interest to researchers in the area of cultural evolution, archaeology and cognitive science. There are no conceivable disadvantages or risks involved in the data collection procedures beyond those encountered in normal everyday life. It is, however, possible that you might encounter mild fatigue and/or boredom during the tasks, but you will be compensated for your time.</p>" +
+                         "<p>Your expected earnings for participating in the study are $6. The study is expected to last roughly 30-40 minutes.</p>"
+            },
+            {
+                title:   "Type of personal data and when it is deleted/anonymised ",
+                content: "<p>During the experiment, image files of your drawings will be collected and anonymized as the main research data. Besides, we collect basic demographic data in the form of age, declared gender, and nationality, and you will be asked to rate your drawing skills. Everything regarding compensations for your participation is handled by Prolific.</p>"
+            },
+            {
+                title:   "Withdrawal of consent",
+                content: "<p>Participation is voluntary and you may withdraw your consent at any time during the experiment without stating a reason. Since data is anonymised, it should be noted that you can withdraw consent up until you leave the experiment. The consent cannot be withdrawn thereafter, since links between your id and data will no longer be identifiable.</p>"
+            },
+            {
+                title:   "Signing consent",
+                content: "<p>By clicking 'I consent', I confirm to have read and understood the above information and that:</p>" +
+                         "<ol>" +
+                         "    <li>My participation is voluntary, and I may withdraw my consent and discontinue participation in the experiment at any time.</li>" +
+                         "    <li>By accepting this agreement, I do not waive any legal rights or release Aarhus University, Denmark, its agents, or you from liability for negligence.</li>" +
+                         "    <li>I give my consent to participate as a subject in the study as described above.</li>" +
+                         "</ol>"
+            }
+        ];
+        
+        const numPages = consentSections.length;
+        const nextBtn = document.getElementById("next-button");
+        const prevBtn = document.getElementById("prev-button");
+        const titleEl = document.getElementById("consent-section-title");
+        const contentEl = document.getElementById("consent-section-content");
+        const formEl = document.getElementById("form");
+        var curPage = 1;
+
+        function updatePage() {
+            titleEl.innerHTML = curPage + ". " + consentSections[curPage - 1].title;
+            contentEl.innerHTML = consentSections[curPage - 1].content;
+            // check for OOB
+            if (curPage < 1) {
+                curPage = 1;
+            } else if (curPage > numPages) {
+                curPage = numPages;
+            }
+
+            // update previous button visibility
+            if (curPage == 1) {
+                prevBtn.style.display = "none";
+            } else {
+                prevBtn.style.display = "block";
+            }
+
+            // update next button text
+            if (curPage == numPages) {
+                nextBtn.innerHTML = "I consent";
+                nextBtn.classList.remove("btn-primary");
+                nextBtn.classList.add("btn-success");
+            } else {
+                nextBtn.innerHTML = "Next &gt;";
+                nextBtn.classList.remove("btn-success");
+                nextBtn.classList.add("btn-primary");
+            }
+        }
+
+        function nextPage() {
+            curPage += 1;
+            if (curPage > numPages) {
+                formEl.submit();
+                return;
+            }
+            updatePage();
+        }
+        function prevPage() {
+            curPage -= 1;
+            updatePage();
+        }
+        // onready
+        document.addEventListener("DOMContentLoaded", (event) => {
+            updatePage();
+            nextBtn.addEventListener("click", nextPage);
+            prevBtn.addEventListener("click", prevPage);
+        });
+
+    </script>
+{{ endblock }}
+
+
