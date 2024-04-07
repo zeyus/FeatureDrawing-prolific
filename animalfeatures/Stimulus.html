@@ -3,14 +3,29 @@
 {{ endblock }}
 
 {{ block content }}
-    <!-- loop through stimuli -->
+    <style>
+        img {
+            border: 1px solid black;
+            height: 100%;
+            width: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+        img.selected {
+            border: 5px solid red;
+        }
+        .img-container {
+            height: 300px;
+            overflow: hidden;   
+        }
+    </style>
     <div class="container">
-        <div class="row">
-        {{ for stimulus in stimuli }}
-        <div class="col-6">
-            <img src="{{ static stimulus.stim }}" class="w-100 img-responsive {{ stimulus.class }}" />
-            </div> 
-        {{ endfor }}
+        <div class="row row-cols-2">
+            {{ for stimulus in stimuli }}
+                <div class="col-6 img-container p-0 m-0">
+                    <img src="{{ static stimulus.stim }}" class="img-responsive {{ stimulus.class }}" />
+                </div> 
+            {{ endfor }}
         </div>  
 
     </div>

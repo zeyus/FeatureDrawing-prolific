@@ -1,5 +1,6 @@
 from sqlalchemy.ext.declarative import DeclarativeMeta  # type: ignore
 from otree.api import BaseConstants, BaseSubsession, BaseGroup, BasePlayer, models, Page, ExtraModel, WaitPage  # type: ignore
+from otree.models import Participant
 from random import shuffle, randint, choice
 import base64
 import datetime
@@ -23,6 +24,7 @@ class C(BaseConstants):
     NAME_IN_URL = 'animalfeatures'
     PLAYERS_PER_GROUP = None
     NUM_ROUNDS = 16
+    DRAWING_TIME = 120.0
     CONDITIONS = ['species_recognition', 'narrative', 'aesthetic']
     ANIMALS = ['horse', 'bison', 'ibex', 'deer']
     ANIMAL_ACTIONS = ['lie', 'run', 'stretch', 'walk']
@@ -62,8 +64,8 @@ class Player(BasePlayer, metaclass=AnnotationFreeMeta):
 
 
 class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
-    subsess: Subsession = models.Link(Subsession)
-    player: Player = models.Link(Player)
+    # subsess: Subsession = models.Link(Subsession)
+    participant: Participant = models.Link(Participant)
     trial: int = models.IntegerField()
     svg: str = models.LongStringField(initial="")  # type: ignore
     drawing_time: float = models.FloatField(initial=0.0)  # type: ignore
@@ -73,6 +75,7 @@ class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
     condition: str = models.StringField(initial="")  # type: ignore
     animal: int = models.StringField(initial="")  # type: ignore
     action: int = models.StringField(initial="")  # type: ignore
+    completed: bool = models.BooleanField(initial=False)  # type: ignore
 
 
 def creating_session(subsession):
@@ -94,10 +97,10 @@ def creating_session(subsession):
             participant.stim_order = base64.b64encode(''.join(stim_order).encode()).decode()
             # set up the stimuli for this round
             for i in range(1, C.NUM_ROUNDS + 1):
+                print("creating drawing object for ", player.id_in_group, " round ", i)
                 animal, action = stim_order.pop().split('_')
                 Drawing.create(
-                    subsess=subsession,
-                    player=player,
+                    participant=participant,
                     trial=i,
                     condition=participant.condition,
                     animal=animal,
@@ -105,7 +108,11 @@ def creating_session(subsession):
                 )
 
 def get_current_trial(player: Player) -> Drawing:
-    return Drawing.filter(subsess=player.subsession, player=player, trial=player.subsession.round_number)[0]
+    print("getting current trial for participant_id: ", player.participant.id, " round: ", player.round_number)
+    print("subsession round number: ", player.subsession.round_number)
+    drawing = Drawing.filter(participant=player.participant, trial=player.subsession.round_number)[0]
+    print("got drawing: ", drawing.id)
+    return drawing
 
 
 def get_stimuli_for_round(drawing: Drawing) -> list[dict]:
@@ -118,21 +125,23 @@ def get_stimuli_for_round(drawing: Drawing) -> list[dict]:
     # if we display stimuli by animal, we will show all actions for that animal
     if condition_config['by_animal']:
         for action in C.ANIMAL_ACTIONS:
+            selected = action == selected_action
             stimuli.append({
                 'animal': selected_animal,
                 'action': action,
-                'selected': action == selected_action,
-                'class': 'selected' if action == selected_action else '',
+                'selected': selected,
+                'class': 'selected' if selected else '',
                 'stim': f"{condition_config['stim_dir']}{selected_animal}_{action}.{file_ext}",
             })
     # otherwise we will show all animals for the selected action
     else:
         for animal in C.ANIMALS:
+            selected = animal == selected_animal
             stimuli.append({
                 'animal': animal,
                 'action': selected_action,
-                'selected': animal == selected_animal,
-                'class': 'selected' if action == selected_action else '',
+                'selected': selected,
+                'class': 'selected' if selected else '',
                 'stim': f"{condition_config['stim_dir']}{animal}_{selected_action}.{file_ext}",
             })
     # shuffle the stimuli
@@ -186,10 +195,24 @@ class Stimulus(Page):
 
 
 class Draw(Page):
+    # only display this page if the trial is not completed
+    @staticmethod
+    def is_displayed(player: Player):
+        drawing = get_current_trial(player)
+        # sneakily update the drawing time if the drawing is not completed
+        if not drawing.completed and drawing.start_timestamp > 0.0:
+            drawing.drawing_time = datetime.datetime.now().timestamp() - drawing.start_timestamp
+        if drawing.drawing_time > C.DRAWING_TIME:
+            drawing.completed = True
+            drawing.end_timestamp = datetime.datetime.now().timestamp()
+
+        return not drawing.completed
+
     @staticmethod
     def vars_for_template(player: Player):
         # get the condition config
         condition_config = get_condition_config(player.participant.condition)
+        # get the current trial
         return dict(
             page_title = condition_config['trial_title'],
         )
@@ -199,12 +222,39 @@ class Draw(Page):
         # get the current trial
         drawing = get_current_trial(player)
         if "event" in data:
+            print("received event: ", data["event"])
             if data['event'] == 'init':
                 # start the drawing timer
                 if drawing.start_timestamp == 0.0:
                     drawing.start_timestamp = datetime.datetime.now().timestamp()
-                drawing.drawing_time = datetime.datetime.now().timestamp() - trial.drawing.start_timestamp
-
+                drawing.drawing_time = datetime.datetime.now().timestamp() - drawing.start_timestamp
+                return {
+                        player.id_in_group: dict(
+                            event='init',
+                            time_left=C.DRAWING_TIME - drawing.drawing_time,
+                            drawing=base64.b64encode(drawing.svg.encode('utf-8')).decode('utf-8'),
+                            completed=drawing.completed,
+                        )
+                    }
+            elif data["event"] == "update":
+                print("updating drawing for ", player.id_in_group)
+                drawing.svg = base64.b64decode(data["drawing"]).decode('utf-8')
+                # no return
+            elif data["event"] == "drawing_complete":
+                drawing.end_timestamp = datetime.datetime.now().timestamp()
+                drawing.svg = base64.b64decode(data["drawing"]).decode('utf-8')
+                drawing.drawing_time = drawing.end_timestamp - drawing.start_timestamp
+                drawing.completed = True
+                # send confirmation to the client
+                print("drawing complete for ", player.id_in_group)
+                return {
+                    player.id_in_group: dict(
+                        event='drawing_complete',
+                        time_left=0,
+                        drawing=drawing.svg,
+                        completed=True,
+                    )
+                }
 
 class ThankYou(Page):
     @staticmethod
