@@ -263,3 +263,6 @@ class ThankYou(Page):
         return player.round_number == C.NUM_ROUNDS
 
 page_sequence = [Welcome, Consent, Instructions, Stimulus, Draw, ThankYou]
+
+# data out
+# animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
