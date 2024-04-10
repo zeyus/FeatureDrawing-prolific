@@ -62,17 +62,17 @@ class Group(BaseGroup, metaclass=AnnotationFreeMeta):
 
 
 class Player(BasePlayer, metaclass=AnnotationFreeMeta):
-    uas: str = models.StringField()
-    wx: float = models.FloatField()
-    wy: float = models.FloatField()
-    orientation: str = models.StringField()
-    browser: str = models.StringField()
-    browser_version: str = models.StringField()
-    os: str = models.StringField()
-    os_version: str = models.StringField()
-    device: str = models.StringField()
-    device_brand: str = models.StringField()
-    device_model: str = models.StringField()
+    uas: str = models.StringField(initial="N/A")  # type: ignore
+    wx: str = models.StringField(initial="N/A")  # type: ignore
+    wy: str = models.StringField(initial="N/A")  # type: ignore
+    orientation: str = models.StringField(initial="N/A")  # type: ignore
+    browser: str = models.StringField(initial="N/A")  # type: ignore
+    browser_version: str = models.StringField(initial="N/A")  # type: ignore
+    os: str = models.StringField(initial="N/A")  # type: ignore
+    os_version: str = models.StringField(initial="N/A")  # type: ignore
+    device: str = models.StringField(initial="N/A")  # type: ignore
+    device_brand: str = models.StringField(initial="N/A")  # type: ignore
+    device_model: str = models.StringField(initial="N/A")  # type: ignore
 
 
 
@@ -176,7 +176,7 @@ class ScreenInfoMixin:
             return
 
         try:
-            user_agent: UserAgent = parse(player.participant.user_agent)
+            user_agent: UserAgent = parse(player.uas)
         except Exception:
             # catch any error because we can just return unknown
             return
@@ -196,7 +196,7 @@ class ScreenInfoMixin:
 
 
 # PAGES
-class Welcome(Page, ScreenInfoMixin):
+class Welcome(ScreenInfoMixin, Page):
 
 
     @staticmethod
@@ -205,14 +205,14 @@ class Welcome(Page, ScreenInfoMixin):
         return player.round_number == 1
 
 
-class Consent(Page, ScreenInfoMixin):
+class Consent(ScreenInfoMixin, Page):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
         return player.round_number == 1
 
 
-class Instructions(Page, ScreenInfoMixin):
+class Instructions(ScreenInfoMixin, Page):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
@@ -234,13 +234,13 @@ class StimPage:
         )
 
 
-class Stimulus(Page, ScreenInfoMixin):
+class Stimulus(ScreenInfoMixin, Page):
     @staticmethod
     def vars_for_template(player: Player):
         return StimPage.vars_for_template(player)
 
 
-class Draw(Page, ScreenInfoMixin):
+class Draw(ScreenInfoMixin, Page):
     # only display this page if the trial is not completed
     @staticmethod
     def is_displayed(player: Player):
@@ -320,7 +320,7 @@ def custom_export(players):
         'trial',
         'animal',
         'action',
-        'img'
+        'stim_img',
         'drawing_time',
         'start_timestamp',
         'end_timestamp',
@@ -332,5 +332,34 @@ def custom_export(players):
         'device',
         'device_brand',
         'device_model',
+        'window_width',
+        'window_height',
+        'orientation',
         'svg',
     ]
+
+    for player in players:
+        for drawing in Drawing.filter(participant=player.participant):
+            yield [
+                player.participant.code,
+                player.participant.condition,
+                drawing.trial,
+                drawing.animal,
+                drawing.action,
+                f"{drawing.animal}_{drawing.action}.gif" if player.participant.condition == 'narrative' else f"{drawing.animal}_{drawing.action}.png",
+                drawing.drawing_time,
+                drawing.start_timestamp,
+                drawing.end_timestamp,
+                drawing.completed,
+                player.browser,
+                player.browser_version,
+                player.os,
+                player.os_version,
+                player.device,
+                player.device_brand,
+                player.device_model,
+                player.wx,
+                player.wy,
+                player.orientation,
+                drawing.svg,
+            ]
