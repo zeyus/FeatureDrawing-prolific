@@ -7,7 +7,8 @@
         <p>Before we get started, we would like you to carefully read the following consent form.</p>
         <p>Click 'next' to view the consent form.</p>
     </div>
-    {{ next_button }}
+    <div class="d-flex justify-content-end">
+        {{ next_button }}
+    </div>
+    {{ include "animalfeatures/template/screenform.html" }}
 {{ endblock }}
-
-

@@ -1,9 +1,11 @@
 from sqlalchemy.ext.declarative import DeclarativeMeta  # type: ignore
-from otree.api import BaseConstants, BaseSubsession, BaseGroup, BasePlayer, models, Page, ExtraModel, WaitPage  # type: ignore
-from otree.models import Participant
-from random import shuffle, randint, choice
+from otree.api import BaseConstants, BaseSubsession, BaseGroup, BasePlayer, models, Page, ExtraModel  # type: ignore
+from otree.models import Participant  # type: ignore
+from random import shuffle, choice
 import base64
 import datetime
+from user_agents import parse  # type: ignore
+from user_agents.parsers import UserAgent  # type: ignore
 
 
 doc = """
@@ -60,7 +62,18 @@ class Group(BaseGroup, metaclass=AnnotationFreeMeta):
 
 
 class Player(BasePlayer, metaclass=AnnotationFreeMeta):
-    pass
+    uas: str = models.StringField()
+    wx: float = models.FloatField()
+    wy: float = models.FloatField()
+    orientation: str = models.StringField()
+    browser: str = models.StringField()
+    browser_version: str = models.StringField()
+    os: str = models.StringField()
+    os_version: str = models.StringField()
+    device: str = models.StringField()
+    device_brand: str = models.StringField()
+    device_model: str = models.StringField()
+
 
 
 class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
@@ -149,24 +162,57 @@ def get_stimuli_for_round(drawing: Drawing) -> list[dict]:
     return stimuli
 
 
+class ScreenInfoMixin:
+    form_model = 'player'
+    form_fields = ['uas', 'wx', 'wy', 'orientation']
+
+
+    @staticmethod
+    def update_browser_info(player: Player) -> None:
+        try:
+            if player.uas is None or player.uas == '':
+                return
+        except KeyError:
+            return
+
+        try:
+            user_agent: UserAgent = parse(player.participant.user_agent)
+        except Exception:
+            # catch any error because we can just return unknown
+            return
+
+        player.browser = user_agent.browser.family
+        player.browser_version = user_agent.browser.version_string
+        player.os = user_agent.os.family
+        player.os_version = user_agent.os.version_string
+        player.device = user_agent.device.family
+        player.device_brand = user_agent.device.brand
+        player.device_model = user_agent.device.model
+
+
+    @staticmethod
+    def before_next_page(player: Player, timeout_happened):
+        ScreenInfoMixin.update_browser_info(player)
 
 
 # PAGES
-class Welcome(Page):
+class Welcome(Page, ScreenInfoMixin):
+
+
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
         return player.round_number == 1
 
 
-class Consent(Page):
+class Consent(Page, ScreenInfoMixin):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
         return player.round_number == 1
 
 
-class Instructions(Page):
+class Instructions(Page, ScreenInfoMixin):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
@@ -188,13 +234,13 @@ class StimPage:
         )
 
 
-class Stimulus(Page):
+class Stimulus(Page, ScreenInfoMixin):
     @staticmethod
     def vars_for_template(player: Player):
         return StimPage.vars_for_template(player)
 
 
-class Draw(Page):
+class Draw(Page, ScreenInfoMixin):
     # only display this page if the trial is not completed
     @staticmethod
     def is_displayed(player: Player):
@@ -256,7 +302,7 @@ class Draw(Page):
                     )
                 }
 
-class ThankYou(Page):
+class ThankYou(Page, ScreenInfoMixin):
     @staticmethod
     # only display this page on the last round
     def is_displayed(player: Player):
@@ -266,3 +312,25 @@ page_sequence = [Welcome, Consent, Instructions, Stimulus, Draw, ThankYou]
 
 # data out
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
+
+def custom_export(players):
+    yield [
+        'participant_code',
+        'condition',
+        'trial',
+        'animal',
+        'action',
+        'img'
+        'drawing_time',
+        'start_timestamp',
+        'end_timestamp',
+        'completed',
+        'browser',
+        'browser_version',
+        'os',
+        'os_version',
+        'device',
+        'device_brand',
+        'device_model',
+        'svg',
+    ]

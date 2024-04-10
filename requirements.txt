@@ -3,3 +3,6 @@
 # otherwise, oTree will automatically overwrite it.
 otree>=5.0.0a21
 psycopg2>=2.8.4
+pyyaml>=6.0.1
+ua-parser>=0.18.0
+user-agents>=2.2.0
