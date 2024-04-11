@@ -35,16 +35,19 @@ class C(BaseConstants):
             'trial_title': 'Draw the selected animal so that another participant can easily recognize that it is this particular animal that you are communicating',
             'stim_dir': 'img/cond_r_a/',
             'by_animal': False,
+            'file_ext': 'png',
         },
         'narrative': {
             'trial_title': 'Draw the selected animal so that another participant can easily recognize its behavior',
             'stim_dir': 'img/cond_n/',
             'by_animal': True,
+            'file_ext': 'gif',
         },
         'aesthetic': {
             'trial_title': 'Draw the selected animal so that another participant will find your drawing pleasing to the eye',
             'stim_dir': 'img/cond_r_a/',
             'by_animal': False,
+            'file_ext': 'png',
         },
     }
 
@@ -86,8 +89,8 @@ class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
     end_timestamp: float = models.FloatField(initial=0.0)  # type: ignore
     trial: int = models.IntegerField(initial=0)  # type: ignore
     condition: str = models.StringField(initial="")  # type: ignore
-    animal: int = models.StringField(initial="")  # type: ignore
-    action: int = models.StringField(initial="")  # type: ignore
+    animal: str = models.StringField(initial="")  # type: ignore
+    action: str = models.StringField(initial="")  # type: ignore
     completed: bool = models.BooleanField(initial=False)  # type: ignore
 
 
@@ -128,13 +131,17 @@ def get_current_trial(player: Player) -> Drawing:
     return drawing
 
 
-def get_stimuli_for_round(drawing: Drawing) -> list[dict]:
+def get_stimuli_for_round(drawing: Drawing) -> list[dict[str, object]]:
     selected_animal = drawing.animal
     selected_action = drawing.action
     condition = drawing.condition
     condition_config = get_condition_config(condition)
+    stimuli = get_stimuli_set(selected_animal, selected_action, condition_config)
+    shuffle(stimuli)
+    return stimuli
+
+def get_stimuli_set(selected_animal: str, selected_action: str, condition_config: dict[str, str]) -> list[dict[str, object]]:
     stimuli = []
-    file_ext = 'gif' if condition == 'narrative' else 'png'
     # if we display stimuli by animal, we will show all actions for that animal
     if condition_config['by_animal']:
         for action in C.ANIMAL_ACTIONS:
@@ -144,7 +151,7 @@ def get_stimuli_for_round(drawing: Drawing) -> list[dict]:
                 'action': action,
                 'selected': selected,
                 'class': 'selected' if selected else '',
-                'stim': f"{condition_config['stim_dir']}{selected_animal}_{action}.{file_ext}",
+                'stim': f"{condition_config['stim_dir']}{selected_animal}_{action}.{condition_config['file_ext']}",
             })
     # otherwise we will show all animals for the selected action
     else:
@@ -155,10 +162,10 @@ def get_stimuli_for_round(drawing: Drawing) -> list[dict]:
                 'action': selected_action,
                 'selected': selected,
                 'class': 'selected' if selected else '',
-                'stim': f"{condition_config['stim_dir']}{animal}_{selected_action}.{file_ext}",
+                'stim': f"{condition_config['stim_dir']}{animal}_{selected_action}.{condition_config['file_ext']}",
             })
     # shuffle the stimuli
-    shuffle(stimuli)
+    
     return stimuli
 
 
@@ -212,11 +219,35 @@ class Consent(ScreenInfoMixin, Page):
         return player.round_number == 1
 
 
-class Instructions(ScreenInfoMixin, Page):
+class InstructionsCond(ScreenInfoMixin, Page):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
         return player.round_number == 1
+    
+    @staticmethod
+    def vars_for_template(player: Player):
+        condition_config = get_condition_config(player.participant.condition)
+        stimuli = get_stimuli_set('deer', 'lie', condition_config)
+        return dict(
+            page_title = condition_config['trial_title'],
+            stimuli = stimuli,
+            condition = player.participant.condition,
+        )
+    
+class InstructionsDraw(ScreenInfoMixin, Page):
+    @staticmethod
+    # only display this page on the first round
+    def is_displayed(player: Player):
+        return player.round_number == 1
+    
+    @staticmethod
+    def vars_for_template(player: Player):
+        condition_config = get_condition_config(player.participant.condition)
+        return dict(
+            condition = player.participant.condition,
+            page_title = condition_config['trial_title'],
+        )
 
 
 class StimPage:
@@ -308,7 +339,7 @@ class ThankYou(Page, ScreenInfoMixin):
     def is_displayed(player: Player):
         return player.round_number == C.NUM_ROUNDS
 
-page_sequence = [Welcome, Consent, Instructions, Stimulus, Draw, ThankYou]
+page_sequence = [Welcome, Consent, InstructionsCond, InstructionsDraw, Stimulus, Draw, ThankYou]
 
 # data out
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed

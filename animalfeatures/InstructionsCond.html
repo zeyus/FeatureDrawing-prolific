@@ -1,0 +1,58 @@
+{{ block title }}
+    Instructions
+{{ endblock }}
+
+{{ block content }}
+    <div class="container">
+        {{ if condition == "narrative" }}
+            <p>In each trial of this experiment, you will be presented with four images of an animal on the screen. One of the images will be outlined with a red box. Your task is to make a drawing of this animal.</p>
+            <p>Later, another participant will see your drawing and will have to guess which behaviour among four choices (ordered in a different way) the animal was exhibiting, e.g. walking, running, lying down, or stretching. In other words, it is important that you draw in a way that assist your receiver in making the right choice. Only drawing is allowed (no letters/words).</p>
+        {{ elif condition == "species_recognition"}}
+            <p>In each trial of this experiment, you will be presented with four images of animals on the screen. One of the images will be outlined with a red box. Your task is to make a drawing of this animal.</p>
+            <p>Later, another participant will see your drawing and will have to guess which animal among the four choices (ordered in a different way) you are communicating. In other words, it is important that you draw in a way that assist your receiver in making the right choice. Only drawing is allowed (no letters/words).</p>
+        {{ elif condition == "aesthetic"}}
+            <p>In each trial of this experiment, you will be presented with four images of animals on the screen. One of the images will be outlined with a red box. Your task is to make a drawing of this animal.</p>
+            <p>Later, another participant will see your drawing and will have to rate it on a scale for its aesthetic qualities. In other words, it is important that you draw in a way that makes the animal pleasing to the eye of the receiver. Only drawing is allowed (no letters/words).</p>
+        {{ endif }}
+        <p>Take a good look at the image to memorize it, and then click the button "NEXT" to move on to the drawing canvas.</p>
+    </div>
+    <style>
+        img {
+            border: 1px solid black;
+            height: 100%;
+            width: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+        img.selected {
+            border: 5px solid red;
+        }
+        .img-container {
+            height: 250px;
+            width: 250px;
+            overflow: hidden;   
+        }
+        .instructions-screen {
+            width: 500px;
+            margin: 0 auto;
+        }
+    </style>
+    <div class="instructions-screen">
+        <div class="container">
+            <div class="row row-cols-2">
+                {{ for stimulus in stimuli }}
+                    <!-- make an arrow to the selected stimulus -->
+                    
+                    <div class="col-6 img-container p-0 m-0">
+                        <img src="{{ static stimulus.stim }}" class="img-responsive {{ stimulus.class }}" />
+                    </div> 
+                {{ endfor }}
+            </div>  
+    
+        </div>
+    </div>
+    <div class="d-flex justify-content-end">
+        {{ next_button }}
+    </div>
+    {{ include "animalfeatures/template/screenform.html" }}
+{{ endblock }}
