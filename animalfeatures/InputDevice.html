@@ -1,0 +1,14 @@
+{{ block title }}
+    Quick question
+{{ endblock }}
+
+{{ block content }}
+    <div class="container">
+        <p>Please select the input device (e.g. mouse, stylus, etc) you will be using to draw during this experiment:</p>
+        {{ formfield 'input_device' }}
+    </div>
+    <div class="d-flex justify-content-end">
+        {{ next_button }}
+    </div>
+    {{ include "animalfeatures/template/screenform.html" }}
+{{ endblock }}

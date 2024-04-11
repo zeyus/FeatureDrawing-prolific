@@ -71,15 +71,27 @@ class Player(BasePlayer, metaclass=AnnotationFreeMeta):
     wx: str = models.StringField(initial="N/A")  # type: ignore
     wy: str = models.StringField(initial="N/A")  # type: ignore
     orientation: str = models.StringField(initial="N/A")  # type: ignore
-    browser: str = models.StringField(initial="N/A")  # type: ignore
-    browser_version: str = models.StringField(initial="N/A")  # type: ignore
-    os: str = models.StringField(initial="N/A")  # type: ignore
-    os_version: str = models.StringField(initial="N/A")  # type: ignore
-    device: str = models.StringField(initial="N/A")  # type: ignore
-    device_brand: str = models.StringField(initial="N/A")  # type: ignore
-    device_model: str = models.StringField(initial="N/A")  # type: ignore
     prolific_id: str = models.StringField(initial="N/A")  # type: ignore
+    input_device: int = models.IntegerField(
+        label='What are you using to draw?',
+        choices=[
+            [0, 'Mouse'],
+            [1, 'Touchpad'],
+            [2, 'Touchscreen (finger)'],
+            [3, 'Touchscreen (stylus)'],
+            [4, 'Graphics Tablet'],
+            [5, 'Trackball'],
+            [6, 'Joystick or Gamepad'],
+            [7, 'Other'],
+        ]
+    )  # type: ignore
 
+    def field_display(self, name):
+        if name == 'input_device':
+            val = self.input_device
+            if val is None:
+                return "N/A"
+        return super().field_display(name)
 
 
 class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
@@ -95,6 +107,16 @@ class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
     animal: str = models.StringField(initial="")  # type: ignore
     action: str = models.StringField(initial="")  # type: ignore
     completed: bool = models.BooleanField(initial=False)  # type: ignore
+    wx: str = models.StringField(initial="N/A")  # type: ignore
+    wy: str = models.StringField(initial="N/A")  # type: ignore
+    orientation: str = models.StringField(initial="N/A")  # type: ignore
+    browser: str = models.StringField(initial="N/A")  # type: ignore
+    browser_version: str = models.StringField(initial="N/A")  # type: ignore
+    os: str = models.StringField(initial="N/A")  # type: ignore
+    os_version: str = models.StringField(initial="N/A")  # type: ignore
+    device: str = models.StringField(initial="N/A")  # type: ignore
+    device_brand: str = models.StringField(initial="N/A")  # type: ignore
+    device_model: str = models.StringField(initial="N/A")  # type: ignore
 
 
 def creating_session(subsession):
@@ -106,15 +128,16 @@ def creating_session(subsession):
         if 'condition' in subsession.session.config and subsession.session.config['condition'] is not None:
             condition = subsession.session.config['condition']
         # set up the condition for each participant
-        for player in subsession.get_players():
+        for n, player in enumerate(subsession.get_players()):
             participant = player.participant
             # # randomly select a condition if not specified
             # participant.condition = choice(C.CONDITIONS) if condition is None else condition
             # cycle through the conditions
             if condition is None:
-                participant.condition = C.CONDITIONS[(subsession.round_number + rand_start) % n_conds]
+                participant.condition = C.CONDITIONS[(n + rand_start) % n_conds]
             else:
                 participant.condition = condition
+            print("setting condition for ", player.participant.id, " to ", participant.condition)
             # set up the order of the stimuli
             stim_order = ['_'.join([animal, action]) for animal in C.ANIMALS for action in C.ANIMAL_ACTIONS]
             # randomize the order of the stimuli
@@ -123,7 +146,7 @@ def creating_session(subsession):
             participant.stim_order = base64.b64encode(''.join(stim_order).encode()).decode()
             # set up the stimuli for this round
             for i in range(1, C.NUM_ROUNDS + 1):
-                print("creating drawing object for ", player.id_in_group, " round ", i)
+                print("creating drawing object for ", player.participant.id, " round ", i)
                 animal, action = stim_order.pop().split('_')
                 Drawing.create(
                     participant=participant,
@@ -198,13 +221,17 @@ class ScreenInfoMixin:
             # catch any error because we can just return unknown
             return
 
-        player.browser = user_agent.browser.family
-        player.browser_version = user_agent.browser.version_string
-        player.os = user_agent.os.family
-        player.os_version = user_agent.os.version_string
-        player.device = user_agent.device.family
-        player.device_brand = user_agent.device.brand
-        player.device_model = user_agent.device.model
+        drawing = get_current_trial(player)
+        drawing.browser = user_agent.browser.family if user_agent.browser.family is not None else "N/A"
+        drawing.browser_version = user_agent.browser.version_string if user_agent.browser.version_string is not None else "N/A"
+        drawing.os = user_agent.os.family if user_agent.os.family is not None else "N/A"
+        drawing.os_version = user_agent.os.version_string if user_agent.os.version_string is not None else "N/A"
+        drawing.device = user_agent.device.family if user_agent.device.family is not None else "N/A"
+        drawing.device_brand = user_agent.device.brand if user_agent.device.brand is not None else "N/A"
+        drawing.device_model = user_agent.device.model if user_agent.device.model is not None else "N/A"
+        drawing.wx = player.wx
+        drawing.wy = player.wy
+        drawing.orientation = player.orientation
 
 
     @staticmethod
@@ -213,7 +240,17 @@ class ScreenInfoMixin:
 
 
 # PAGES
-class Welcome(ScreenInfoMixin, Page):
+class InputDevice(Page):
+    form_model = 'player'
+    form_fields = ['input_device']
+
+    @staticmethod
+    def is_displayed(player: Player):
+        return player.round_number == 1
+
+
+class Welcome(Page):
+
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
@@ -224,14 +261,14 @@ class Welcome(ScreenInfoMixin, Page):
         player.prolific_id = player.participant.label
 
 
-class Consent(ScreenInfoMixin, Page):
+class Consent(Page):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
         return player.round_number == 1
 
 
-class InstructionsCond(ScreenInfoMixin, Page):
+class InstructionsCond(Page):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
@@ -249,7 +286,7 @@ class InstructionsCond(ScreenInfoMixin, Page):
             condition = player.participant.condition,
         )
     
-class InstructionsDraw(ScreenInfoMixin, Page):
+class InstructionsDraw(Page):
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
@@ -279,7 +316,7 @@ class StimPage:
         )
 
 
-class Stimulus(ScreenInfoMixin, Page):
+class Stimulus(Page):
     @staticmethod
     def vars_for_template(player: Player):
         return StimPage.vars_for_template(player)
@@ -347,7 +384,7 @@ class Draw(ScreenInfoMixin, Page):
                     )
                 }
 
-class ThankYou(Page, ScreenInfoMixin):
+class ThankYou(Page):
     @staticmethod
     # only display this page on the last round
     def is_displayed(player: Player):
@@ -359,7 +396,7 @@ class ThankYou(Page, ScreenInfoMixin):
             prolific_url = C.PROLIFIC_FALLBACK_URL if 'prolific_url' not in player.session.config else player.session.config['prolific_url'],
         )
 
-page_sequence = [Welcome, Consent, InstructionsCond, InstructionsDraw, Stimulus, Draw, ThankYou]
+page_sequence = [Welcome, Consent, InputDevice, InstructionsCond, InstructionsDraw, Stimulus, Draw, ThankYou]
 
 # data out
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
@@ -387,6 +424,7 @@ def custom_export(players):
         'window_width',
         'window_height',
         'orientation',
+        'input_device',
         'svg',
     ]
 
@@ -405,15 +443,16 @@ def custom_export(players):
             drawing.start_timestamp,
             drawing.end_timestamp,
             drawing.completed,
-            player.browser,
-            player.browser_version,
-            player.os,
-            player.os_version,
-            player.device,
-            player.device_brand,
-            player.device_model,
-            player.wx,
-            player.wy,
-            player.orientation,
+            drawing.browser,
+            drawing.browser_version,
+            drawing.os,
+            drawing.os_version,
+            drawing.device,
+            drawing.device_brand,
+            drawing.device_model,
+            drawing.wx,
+            drawing.wy,
+            drawing.orientation,
+            player.field_display('input_device'),
             drawing.svg,
         ]

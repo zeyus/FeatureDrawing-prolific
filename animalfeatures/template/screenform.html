@@ -3,8 +3,21 @@
 <input type="hidden" name="wy" id="wy">
 <input type="hidden" name="orientation" id="orientation">
 <script>
-    forminputs.uas.value = navigator.userAgent;
-    forminputs.wx.value = window.screen.availWidth;
-    forminputs.wy.value = window.screen.availHeight;
-    forminputs.orientation.value = window.screen.orientation.type;
+    
+    function updateXY() {
+        forminputs.wx.value = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        forminputs.wy.value = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+    }
+
+    window.addEventListener('resize', function() {
+        updateXY();
+    });
+    window.addEventListener('orientationchange', function() {
+        forminputs.orientation.value = window.screen.orientation.type;
+    });
+    window.addEventListener('DOMContentLoaded', function() {
+        forminputs.uas.value = navigator.userAgent;
+        updateXY();
+        forminputs.orientation.value = window.screen.orientation.type;
+    });
 </script>
