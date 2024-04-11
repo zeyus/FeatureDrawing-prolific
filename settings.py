@@ -6,6 +6,7 @@ SESSION_CONFIGS = [
         app_sequence=['animalfeatures'],
         num_demo_participants=1,
         condition=None,
+        prolific_url='https://app.prolific.com/submissions/complete?cc=CW8BWO89',
     ),
     dict(
         name='animalfeatures_species_recognition',
@@ -24,6 +25,13 @@ SESSION_CONFIGS = [
         app_sequence=['animalfeatures'],
         num_demo_participants=1,
         condition='aesthetic',
+    ),
+]
+
+ROOMS = [
+    dict(
+        name='animalfeatures',
+        display_name='Animal Features',
     ),
 ]
 

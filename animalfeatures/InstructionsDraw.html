@@ -1,10 +1,197 @@
 {{ block title }}
-    ...Instructions...
+    Instructions
 {{ endblock }}
 
 {{ block content }}
+    <style>
+        #canvas {
+            margin-left: auto;
+            margin-right: auto;
+            width: 400px; /* EDIT TO CHANGE WIDTH */
+            position: relative;
+        }
+
+        /* #canvas button {
+            margin: 0 5px;
+        } */
+        #canvas .svgContainer {
+            background-color: white; /* EDIT TO CHANGE BACKGROUND COLOR */
+            border: 2px solid black;
+            border-radius: 5px;
+            margin: 0 0 20px 0;
+            box-shadow: 5px 5px 5px rgb(51, 51, 51);
+            position: relative;
+        }
+        .instructions-background {
+            margin-top: 50px;
+            margin-bottom: 50px;
+            background-color: #333333;
+            width: 100%;
+            padding-top: 25px;
+            padding-bottom: 25px;
+        }
+
+        .instructions-background button {
+            margin: 0 0px;
+            font-size: 10px;
+            padding: 2px 5px;
+            /** don't break the button into two lines */
+            white-space: nowrap;
+            height: 21px !important;
+            cursor: default !important;
+        }
+        .instructions-background button:active, .instructions-background button:hover, .instructions-background button:focus {
+            box-shadow: none !important;
+        }
+        .instructions-background button:active#done, .instructions-background button:hover#done, .instructions-background button:focus#done {
+            color: #fff !important;
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+         
+        }
+        .instructions-background button:active#undoButton, .instructions-background button:hover#undoButton, .instructions-background button:focus#undoButton {
+            color: #000 !important;
+            background-color: #ffc107 !important;
+            border-color: #ffc107 !important;
+        }
+        .instructions-background button:active#clearDrawing, .instructions-background button:hover#clearDrawing, .instructions-background button:focus#clearDrawing {
+            color: #fff !important;
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+        }
+        #timeout-warning {
+            padding: 2px 5px;
+            font-size: 10px;
+        }
+        .arrow-right:after {
+            content: "";
+            display: inline-block !important;
+            width: 0;
+            height: 0;
+            margin-left: -1px;
+            border-left: 10px solid #caffb0;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            vertical-align: middle;
+
+        }
+
+        .arrow-right:before {
+            width: 40px;
+            height: 10px;
+            background: #caffb0;
+            content: "";
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .arrow-container {
+            position: absolute;
+            rotate: 60deg;
+            top: -30px;
+            left: 0;
+            z-index: 100;
+        }
+        .arrow-shadow-container {
+            position: absolute;
+            rotate: 60deg;
+            top: -27px;
+            left: 3px;
+            z-index: 80;
+            /** blur the shadow */
+            filter: blur(2px);
+        }
+        .arrow-shadow::after {
+            content: "";
+            display: inline-block !important;
+            width: 0;
+            height: 0;
+            margin-left: -1px;
+            border-left: 10px solid rgb(51, 51, 51);
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            vertical-align: middle;
+
+        }
+        .arrow-shadow::before {
+            width: 40px;
+            height: 10px;
+            background: rgb(51, 51, 51);
+            content: "";
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .arrow-blurb {
+            position: absolute;
+            top: -100px;
+            left: -100px;
+            background-color: #caffb0;
+            padding: 10px;
+            padding-bottom: 0px;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            box-shadow: 5px 5px 5px rgb(51, 51, 51);
+            width: 250px;
+            color: black;
+            font-size: 12px;
+            height: 75px;
+            z-index: 90;
+        }
+    </style>
     <div class="container">
-        <p>instructions</p>
+        <p>Follow the task instruction on the screen and use your mouse to draw the animal.</p>
+        <p>You can undo a stroke by pressing the orange "Undo" button</p>
+        <p>You can clear the whole drawing by pressing the red "Clear" button.</p>
+        <p>You have a maximum of two minutes to complete your drawing </p>
+        <p>Once the drawing is done, press the blue "Done" button in the bottom right corner of the screen, to continue to the next trial.</p>
+
+    </div>
+    <div class="instructions-background">
+        <div class="h4 text-center text-white mx-5 px-5 pb-2">
+            {{ page_title }}
+        </div>
+        <div class="container">
+            <div id="canvas">
+                <div class="svgContainer">
+                    <svg id="svg" width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="5" width="390" height="390" fill="white" />
+                        <!-- a simple squiggle -->
+                        <path id="path1" stroke="#cb1212" stroke-linecap="round" stroke-width="8" fill="none" d="M 50 50 Q 150 250 200 200 Q 300 100 300 300" />
+                    </svg>
+                </div>
+                <div class="row">
+                    <div class="col-3 d-flex gap-2">
+                        <button type="button" tabindex="-1" data-bs-toggle="modal" style="height:38px" data-bs-target="#clearDrawing" class="btn btn-danger">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                            </svg>
+                            Reset
+                        </button>
+                        <button type="button" tabindex="-1" id="undoButton" style="height:38px" class="undoButton btn btn-warning">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/>
+                                <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/>
+                            </svg>
+                            Undo
+                        </button>
+                    </div>
+                    <div class="col-8 d-flex justify-content-center">
+                        <div id="timeout-warning" class="alert alert-warning position-relative" role="alert">
+                            <strong>Note:</strong> You have <span id="time-left">20</span> seconds left to finish drawing.
+                            <div class="arrow-shadow-container"><span class="arrow-shadow"></span></div>
+                            <div class="arrow-container"><span class="arrow-right"></span></div>
+                            <div class="arrow-blurb">
+                                <p>This countdown will appear if you take too long to complete your drawing.</p>
+                            </div>  
+                        </div>
+                    </div>
+                    <div class="col-1 justify-content-end d-flex">
+                        <button type="button" tabindex="-1" id="done" style="height:38px" class="align-self-right btn btn-primary">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="d-flex justify-content-end">
         {{ next_button }}

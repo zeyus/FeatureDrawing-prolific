@@ -1,7 +1,7 @@
 from sqlalchemy.ext.declarative import DeclarativeMeta  # type: ignore
 from otree.api import BaseConstants, BaseSubsession, BaseGroup, BasePlayer, models, Page, ExtraModel  # type: ignore
 from otree.models import Participant  # type: ignore
-from random import shuffle, choice
+from random import shuffle, randint
 import base64
 import datetime
 from user_agents import parse  # type: ignore
@@ -50,6 +50,8 @@ class C(BaseConstants):
             'file_ext': 'png',
         },
     }
+    # will use the session config but will fall back to the following
+    PROLIFIC_FALLBACK_URL = 'https://app.prolific.com/submissions/complete?cc=CW8BWO89'
 
 
 def get_condition_config(condition: str):
@@ -76,6 +78,7 @@ class Player(BasePlayer, metaclass=AnnotationFreeMeta):
     device: str = models.StringField(initial="N/A")  # type: ignore
     device_brand: str = models.StringField(initial="N/A")  # type: ignore
     device_model: str = models.StringField(initial="N/A")  # type: ignore
+    prolific_id: str = models.StringField(initial="N/A")  # type: ignore
 
 
 
@@ -97,14 +100,21 @@ class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
 def creating_session(subsession):
     if subsession.round_number == 1:
         condition = None
+        n_conds = len(C.CONDITIONS)
+        rand_start = randint(0, n_conds - 1)
         # if the condition is specified by the demo session (for testing) we will use that
         if 'condition' in subsession.session.config and subsession.session.config['condition'] is not None:
             condition = subsession.session.config['condition']
         # set up the condition for each participant
         for player in subsession.get_players():
             participant = player.participant
-            # randomly select a condition if not specified
-            participant.condition = choice(C.CONDITIONS) if condition is None else condition
+            # # randomly select a condition if not specified
+            # participant.condition = choice(C.CONDITIONS) if condition is None else condition
+            # cycle through the conditions
+            if condition is None:
+                participant.condition = C.CONDITIONS[(subsession.round_number + rand_start) % n_conds]
+            else:
+                participant.condition = condition
             # set up the order of the stimuli
             stim_order = ['_'.join([animal, action]) for animal in C.ANIMALS for action in C.ANIMAL_ACTIONS]
             # randomize the order of the stimuli
@@ -204,12 +214,14 @@ class ScreenInfoMixin:
 
 # PAGES
 class Welcome(ScreenInfoMixin, Page):
-
-
     @staticmethod
     # only display this page on the first round
     def is_displayed(player: Player):
         return player.round_number == 1
+    
+    @staticmethod
+    def before_next_page(player: Player, timeout_happened):
+        player.prolific_id = player.participant.label
 
 
 class Consent(ScreenInfoMixin, Page):
@@ -229,6 +241,8 @@ class InstructionsCond(ScreenInfoMixin, Page):
     def vars_for_template(player: Player):
         condition_config = get_condition_config(player.participant.condition)
         stimuli = get_stimuli_set('deer', 'lie', condition_config)
+        # order stimuli so that the selected animal is first
+        stimuli = sorted(stimuli, key=lambda x: (x['selected'], x['animal'], x['action']), reverse=True)
         return dict(
             page_title = condition_config['trial_title'],
             stimuli = stimuli,
@@ -339,6 +353,12 @@ class ThankYou(Page, ScreenInfoMixin):
     def is_displayed(player: Player):
         return player.round_number == C.NUM_ROUNDS
 
+    @staticmethod
+    def vars_for_template(player: Player):
+        return dict(
+            prolific_url = C.PROLIFIC_FALLBACK_URL if 'prolific_url' not in player.session.config else player.session.config['prolific_url'],
+        )
+
 page_sequence = [Welcome, Consent, InstructionsCond, InstructionsDraw, Stimulus, Draw, ThankYou]
 
 # data out
@@ -347,6 +367,7 @@ page_sequence = [Welcome, Consent, InstructionsCond, InstructionsDraw, Stimulus,
 def custom_export(players):
     yield [
         'participant_code',
+        'prolific_id',
         'condition',
         'trial',
         'animal',
@@ -369,28 +390,30 @@ def custom_export(players):
         'svg',
     ]
 
-    for player in players:
-        for drawing in Drawing.filter(participant=player.participant):
-            yield [
-                player.participant.code,
-                player.participant.condition,
-                drawing.trial,
-                drawing.animal,
-                drawing.action,
-                f"{drawing.animal}_{drawing.action}.gif" if player.participant.condition == 'narrative' else f"{drawing.animal}_{drawing.action}.png",
-                drawing.drawing_time,
-                drawing.start_timestamp,
-                drawing.end_timestamp,
-                drawing.completed,
-                player.browser,
-                player.browser_version,
-                player.os,
-                player.os_version,
-                player.device,
-                player.device_brand,
-                player.device_model,
-                player.wx,
-                player.wy,
-                player.orientation,
-                drawing.svg,
-            ]
+    for drawing in Drawing.filter():
+        player = drawing.participant.get_players()[0]
+        condition_conf = get_condition_config(player.participant.condition)
+        yield [
+            player.participant.code,
+            player.prolific_id,
+            player.participant.condition,
+            drawing.trial,
+            drawing.animal,
+            drawing.action,
+            f"{drawing.animal}_{drawing.action}.{condition_conf['file_ext']}",
+            drawing.drawing_time,
+            drawing.start_timestamp,
+            drawing.end_timestamp,
+            drawing.completed,
+            player.browser,
+            player.browser_version,
+            player.os,
+            player.os_version,
+            player.device,
+            player.device_brand,
+            player.device_model,
+            player.wx,
+            player.wy,
+            player.orientation,
+            drawing.svg,
+        ]

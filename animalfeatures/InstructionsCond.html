@@ -30,25 +30,117 @@
         .img-container {
             height: 250px;
             width: 250px;
-            overflow: hidden;   
+            overflow: hidden;
+        }
+        .img-col {
+            position: relative;
         }
         .instructions-screen {
             width: 500px;
             margin: 0 auto;
         }
+        
+        .arrow-right:after {
+            content: "";
+            display: inline-block !important;
+            width: 0;
+            height: 0;
+            border-left: 10px solid #caffb0;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            vertical-align: middle;
+
+        }
+
+        .arrow-right:before {
+            width: 20px;
+            height: 10px;
+            background: #caffb0;
+            content: "";
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .arrow-shadow::after {
+            content: "";
+            display: inline-block !important;
+            width: 0;
+            height: 0;
+            margin-left: -1px;
+            border-left: 10px solid rgb(51, 51, 51);
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            vertical-align: middle;
+
+        }
+        .arrow-shadow::before {
+            width: 20px;
+            height: 10px;
+            background: rgb(51, 51, 51);
+            content: "";
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .arrow-container {
+            position: absolute;
+            rotate: 90deg;
+            top: 30px;
+            left: 50px;
+            z-index: 100;
+
+        }
+        .arrow-shadow-container {
+            position: absolute;
+            rotate: 90deg;
+            top: 34px;
+            left: 54px;
+            z-index: 80;
+            /** blur the shadow */
+            filter: blur(2px);
+        }
+        .arrow-blurb {
+            position: absolute;
+            top: -40px;
+            left: -10px;
+            background-color: #caffb0;
+            padding: 10px;
+            padding-bottom: 0px;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            box-shadow: 5px 5px 5px rgb(51, 51, 51);
+            width: 250px;
+            color: black;
+            z-index: 90;
+        }
+        .instructions-background {
+            margin-top: 50px;
+            margin-bottom: 50px;
+            background-color: #333333;
+            width: 100%;
+            padding-top: 25px;
+            padding-bottom: 25px;
+        }
     </style>
-    <div class="instructions-screen">
-        <div class="container">
-            <div class="row row-cols-2">
-                {{ for stimulus in stimuli }}
-                    <!-- make an arrow to the selected stimulus -->
-                    
-                    <div class="col-6 img-container p-0 m-0">
-                        <img src="{{ static stimulus.stim }}" class="img-responsive {{ stimulus.class }}" />
-                    </div> 
-                {{ endfor }}
-            </div>  
-    
+    <div class="instructions-background">
+        <div class="instructions-screen">
+            <div class="container">
+                <div class="row row-cols-2">
+                    {{ for stimulus in stimuli }}
+                        <div class="col-6 img-col p-0 m-0">
+                            {{ if stimulus.selected }}
+                                <div class="arrow-shadow-container"><span class="arrow-shadow"></span></div>
+                                <div class="arrow-container"><span class="arrow-right"></span></div>
+                                <div class="arrow-blurb">
+                                    <p>In this case, you will be asked to draw the {{ stimulus.animal }}.</p>
+                                </div>
+                            {{ endif }}
+                            <div class="img-container p-0 m-0">
+                                <img src="{{ static stimulus.stim }}" class="img-responsive {{ stimulus.class }}" />
+                            </div>
+                        </div> 
+                    {{ endfor }}
+                </div>  
+        
+            </div>
         </div>
     </div>
     <div class="d-flex justify-content-end">
