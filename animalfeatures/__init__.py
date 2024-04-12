@@ -156,10 +156,11 @@ def creating_session(subsession):
                     action=action,
                 )
 
-def get_current_trial(player: Player) -> Drawing:
-    print("getting current trial for participant_id: ", player.participant.id, " round: ", player.round_number)
+def get_current_trial(player: Player, round_number: int|None = None) -> Drawing:
+    round_number = player.subsession.round_number if round_number is None else round_number
+    print("getting current trial for participant_id: ", player.participant.id, " round: ", round_number)
     print("subsession round number: ", player.subsession.round_number)
-    drawing = Drawing.filter(participant=player.participant, trial=player.subsession.round_number)[0]
+    drawing = Drawing.filter(participant=player.participant, trial=round_number)[0]
     print("got drawing: ", drawing.id)
     return drawing
 
@@ -402,6 +403,14 @@ page_sequence = [Welcome, Consent, InputDevice, InstructionsCond, InstructionsDr
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
 
 def custom_export(players):
+    for player in players:
+        # assign condition to player
+        drawing = get_current_trial(player, 1)
+        if not hasattr(player, 'condition') or player.condition is None:
+            player.condition = drawing.condition
+        if 'condition' not in player.participant.vars or player.participant.vars['condition'] is None:
+            player.participant.vars['condition'] = drawing.condition
+
     yield [
         'participant_code',
         'prolific_id',
