@@ -403,14 +403,6 @@ page_sequence = [Welcome, Consent, InputDevice, InstructionsCond, InstructionsDr
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
 
 def custom_export(players):
-    for player in players:
-        # assign condition to player
-        drawing = get_current_trial(player, 1)
-        if not hasattr(player, 'condition') or player.condition is None:
-            player.condition = drawing.condition
-        if 'condition' not in player.participant.vars or player.participant.vars['condition'] is None:
-            player.participant.vars['condition'] = drawing.condition
-
     yield [
         'participant_code',
         'prolific_id',
@@ -437,45 +429,82 @@ def custom_export(players):
         'svg',
     ]
 
-    for drawing in Drawing.filter():
-        print("exporting drawing: ", drawing.id)
-        player = drawing.participant.get_players()[0]
-        # failsafe for older models that didn't have condition on drawing, or participant, fall back to N/A
-        condition = "N/A"
-        condition_conf = dict(
-            file_ext='png'
-        )
-        # check if drawing has a condition prop
-        if hasattr(drawing, 'condition'):
-            condition = drawing.condition
-            condition_conf = get_condition_config(condition)
-        elif hasattr(player.participant, 'condition'):
-            condition = player.condition
-            condition_conf = get_condition_config(condition)
-        # condition_conf = get_condition_config(drawing.condition)
-        yield [
-            player.participant.code,
-            player.prolific_id,
-            drawing.condition,
-            drawing.trial,
-            drawing.animal,
-            drawing.action,
-            f"{drawing.animal}_{drawing.action}.{condition_conf['file_ext']}",
-            drawing.drawing_time,
-            drawing.start_timestamp,
-            drawing.end_timestamp,
-            drawing.completed,
-            drawing.browser,
-            drawing.browser_version,
-            drawing.os,
-            drawing.os_version,
-            drawing.device,
-            drawing.device_brand,
-            drawing.device_model,
-            drawing.wx,
-            drawing.wy,
-            drawing.orientation,
-            player.field_display('input_device'),
-            drawing.svg,
-        ]
+    for player in players:
+        # assign condition to player
+        drawing = get_current_trial(player, 1)
+        if not hasattr(player, 'condition') or player.condition is None:
+            player.condition = drawing.condition
+        if 'condition' not in player.participant.vars or player.participant.vars['condition'] is None:
+            player.participant.vars['condition'] = drawing.condition
+
+        for drawing in Drawing.filter(participant=player.participant):
+            print("exporting drawing: ", drawing.id)
+            condition_conf = get_condition_config(drawing.condition)
+            yield [
+                player.participant.code,
+                player.prolific_id,
+                drawing.condition,
+                drawing.trial,
+                drawing.animal,
+                drawing.action,
+                f"{drawing.animal}_{drawing.action}.{condition_conf['file_ext']}",
+                drawing.drawing_time,
+                drawing.start_timestamp,
+                drawing.end_timestamp,
+                drawing.completed,
+                drawing.browser,
+                drawing.browser_version,
+                drawing.os,
+                drawing.os_version,
+                drawing.device,
+                drawing.device_brand,
+                drawing.device_model,
+                drawing.wx,
+                drawing.wy,
+                drawing.orientation,
+                player.field_display('input_device'),
+                drawing.svg,
+            ]
+
+    # for drawing in Drawing.filter():
+    #     print("exporting drawing: ", drawing.id)
+    #     player = drawing.participant.get_players()[0]
+    #     # failsafe for older models that didn't have condition on drawing, or participant, fall back to N/A
+    #     condition = "N/A"
+    #     condition_conf = dict(
+    #         file_ext='png'
+    #     )
+    #     # check if drawing has a condition prop
+    #     if hasattr(drawing, 'condition'):
+    #         condition = drawing.condition
+    #         condition_conf = get_condition_config(condition)
+    #     elif hasattr(player.participant, 'condition'):
+    #         condition = player.condition
+    #         condition_conf = get_condition_config(condition)
+    #     # condition_conf = get_condition_config(drawing.condition)
+    #     yield [
+    #         player.participant.code,
+    #         player.prolific_id,
+    #         drawing.condition,
+    #         drawing.trial,
+    #         drawing.animal,
+    #         drawing.action,
+    #         f"{drawing.animal}_{drawing.action}.{condition_conf['file_ext']}",
+    #         drawing.drawing_time,
+    #         drawing.start_timestamp,
+    #         drawing.end_timestamp,
+    #         drawing.completed,
+    #         drawing.browser,
+    #         drawing.browser_version,
+    #         drawing.os,
+    #         drawing.os_version,
+    #         drawing.device,
+    #         drawing.device_brand,
+    #         drawing.device_model,
+    #         drawing.wx,
+    #         drawing.wy,
+    #         drawing.orientation,
+    #         player.field_display('input_device'),
+    #         drawing.svg,
+    #     ]
     print("exported all drawings")
