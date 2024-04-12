@@ -438,9 +438,13 @@ def custom_export(players):
     ]
 
     for drawing in Drawing.filter():
+        print("exporting drawing: ", drawing.id)
         player = drawing.participant.get_players()[0]
         # failsafe for older models that didn't have condition on drawing, or participant, fall back to N/A
         condition = "N/A"
+        condition_conf = dict(
+            file_ext='png'
+        )
         # check if drawing has a condition prop
         if hasattr(drawing, 'condition'):
             condition = drawing.condition
@@ -448,11 +452,6 @@ def custom_export(players):
         elif hasattr(player.participant, 'condition'):
             condition = player.condition
             condition_conf = get_condition_config(condition)
-        else:
-            condition = "N/A"
-            condition_conf = dict(
-                file_ext='png'
-            )
         # condition_conf = get_condition_config(drawing.condition)
         yield [
             player.participant.code,
@@ -479,3 +478,4 @@ def custom_export(players):
             player.field_display('input_device'),
             drawing.svg,
         ]
+    print("exported all drawings")
