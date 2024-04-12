@@ -151,7 +151,7 @@ def creating_session(subsession):
                 Drawing.create(
                     participant=participant,
                     trial=i,
-                    condition=participant.condition,
+                    condition=condition,
                     animal=animal,
                     action=action,
                 )
@@ -430,7 +430,21 @@ def custom_export(players):
 
     for drawing in Drawing.filter():
         player = drawing.participant.get_players()[0]
-        condition_conf = get_condition_config(drawing.condition)
+        # failsafe for older models that didn't have condition on drawing, or participant, fall back to N/A
+        condition = "N/A"
+        # check if drawing has a condition prop
+        if hasattr(drawing, 'condition'):
+            condition = drawing.condition
+            condition_conf = get_condition_config(condition)
+        elif hasattr(player.participant, 'condition'):
+            condition = player.condition
+            condition_conf = get_condition_config(condition)
+        else:
+            condition = "N/A"
+            condition_conf = dict(
+                file_ext='png'
+            )
+        # condition_conf = get_condition_config(drawing.condition)
         yield [
             player.participant.code,
             player.prolific_id,
