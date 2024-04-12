@@ -143,7 +143,7 @@ def creating_session(subsession):
             # randomize the order of the stimuli
             shuffle(stim_order)
             # save the order of the stimuli
-            participant.stim_order = base64.b64encode(''.join(stim_order).encode()).decode()
+            # participant.stim_order = base64.b64encode(''.join(stim_order).encode()).decode()
             # set up the stimuli for this round
             for i in range(1, C.NUM_ROUNDS + 1):
                 print("creating drawing object for ", player.participant.id, " round ", i)
@@ -430,11 +430,11 @@ def custom_export(players):
 
     for drawing in Drawing.filter():
         player = drawing.participant.get_players()[0]
-        condition_conf = get_condition_config(player.participant.condition)
+        condition_conf = get_condition_config(drawing.condition)
         yield [
             player.participant.code,
             player.prolific_id,
-            player.participant.condition,
+            drawing.condition,
             drawing.trial,
             drawing.animal,
             drawing.action,
