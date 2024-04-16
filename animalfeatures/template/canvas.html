@@ -72,6 +72,19 @@
     </div>
 </div>
 <div id="canvas">
+    <!-- toast -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toastComplexity" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+                <strong class="me-auto">Whoops!</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                You seem to have finished that drawing a bit too quickly. It is important that you make an effort to draw the animal thoroughly. Try to draw some more on it.
+            </div>
+               
+        </div>
+    </div>
     <!-- Modal -->
     <div class="modal fade" id="clearDrawing" tabindex="-1" role="dialog" aria-labelledby="clearDrawingLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -154,6 +167,11 @@
     var SVGelement = document.getElementsByClassName('svgElement').item(0);
     var drawing = document.getElementsByClassName('drawing').item(0);
 
+    const toastComplexity = document.getElementById('toastComplexity');
+    var toastBootstrap;
+
+    var complexityMet = false;
+
     // Drawer object
     var drawer;
 
@@ -175,6 +193,10 @@
 
     function doneEvent(e) {
         e.preventDefault();
+        if (!complexityMet) {
+            toastBootstrap.show();
+            return;
+        }
         liveSend({
             'event': 'drawing_complete',
             'drawing': drawing.value,
@@ -255,6 +277,7 @@
         const drawing_contents = has_drawing ? data.drawing : null;
         const event = Object.keys(data).includes('event') ? data.event : null;
         const time_left = Object.keys(data).includes('time_left') ? data.time_left : 0;
+        const complexity_met = Object.keys(data).includes('complexity_met') ? data.complexity_met : false;
         // const num_trials = Object.keys(data).includes('num_trials') ? data.num_trials : 0;
 
         switch (event) {
@@ -282,13 +305,18 @@
             case 'remaining_time':
                 timeLeft = data.time_left;
                 break;
+            case 'update_complexity':
+                complexityMet = complexity_met;
+                break;
         }
     }
 
 
 
     document.addEventListener("DOMContentLoaded", (event) => {
+        toastBootstrap = new bootstrap.Toast(toastComplexity);
         // send a message to the server to indicate that the page is ready
         liveSend({'event': 'init'});
     });
 </script>
+

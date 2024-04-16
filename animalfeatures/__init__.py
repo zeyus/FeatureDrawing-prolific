@@ -52,6 +52,8 @@ class C(BaseConstants):
     }
     # will use the session config but will fall back to the following
     PROLIFIC_FALLBACK_URL = 'https://app.prolific.com/submissions/complete?cc=CW8BWO89'
+    MIN_DRAWING_LENGTH = 2501
+    MIN_DRAWING_TIME = 10.0
 
 
 def get_condition_config(condition: str):
@@ -151,7 +153,7 @@ def creating_session(subsession):
                 Drawing.create(
                     participant=participant,
                     trial=i,
-                    condition=condition,
+                    condition=participant.condition,
                     animal=animal,
                     action=action,
                 )
@@ -238,6 +240,9 @@ class ScreenInfoMixin:
     @staticmethod
     def before_next_page(player: Player, timeout_happened):
         ScreenInfoMixin.update_browser_info(player)
+
+def complexity_requirement_met(svg: str, drawing_time: float) -> bool:
+    return len(svg) > C.MIN_DRAWING_LENGTH and drawing_time > C.MIN_DRAWING_TIME
 
 
 # PAGES
@@ -363,12 +368,22 @@ class Draw(ScreenInfoMixin, Page):
                             time_left=C.DRAWING_TIME - drawing.drawing_time,
                             drawing=base64.b64encode(drawing.svg.encode('utf-8')).decode('utf-8'),
                             completed=drawing.completed,
+                            complexity_met=complexity_requirement_met(drawing.svg, drawing.drawing_time),
                         )
                     }
             elif data["event"] == "update":
                 print("updating drawing for ", player.id_in_group)
                 drawing.svg = base64.b64decode(data["drawing"]).decode('utf-8')
-                # no return
+                # update drawing time
+                drawing.drawing_time = datetime.datetime.now().timestamp() - drawing.start_timestamp
+                # let the client know if the complexity requirement is met
+                return {
+                    player.id_in_group: dict(
+                        event='update_complexity',
+                        time_left=C.DRAWING_TIME - drawing.drawing_time,
+                        complexity_met=complexity_requirement_met(drawing.svg, drawing.drawing_time),
+                    )
+                }
             elif data["event"] == "drawing_complete":
                 drawing.end_timestamp = datetime.datetime.now().timestamp()
                 drawing.svg = base64.b64decode(data["drawing"]).decode('utf-8')
