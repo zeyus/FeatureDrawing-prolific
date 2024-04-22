@@ -9,15 +9,31 @@
         forminputs.wy.value = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
     }
 
+    function updateOrientation() {
+        // safari < 16.4 does not support window.screen.orientation, instead use window.orientation
+        var orientation = "N/A";
+        try {
+            orientation = window.screen.orientation.type;
+        } catch (e) {
+            try {
+                orientation = window.orientation;
+            } catch (e) {
+                orientation = "N/A";
+            }
+        }
+        forminputs.orientation.value = orientation;
+    }
+
     window.addEventListener('resize', function() {
         updateXY();
     });
     window.addEventListener('orientationchange', function() {
-        forminputs.orientation.value = window.screen.orientation.type;
+        updateOrientation();        
     });
+
     window.addEventListener('DOMContentLoaded', function() {
         forminputs.uas.value = navigator.userAgent;
         updateXY();
-        forminputs.orientation.value = window.screen.orientation.type;
+        updateOrientation();
     });
 </script>
