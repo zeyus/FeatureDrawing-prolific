@@ -32,19 +32,19 @@ class C(BaseConstants):
     ANIMAL_ACTIONS = ['lie', 'run', 'stretch', 'walk']
     CONDITION_CONFIG = {
         'species_recognition': {
-            'trial_title': 'Draw the selected animal so that another participant can easily recognize that it is this particular animal that you are communicating',
+            'trial_title': 'Draw {} so that another participant can easily recognize that it is this particular animal that you are communicating',
             'stim_dir': 'img/cond_r_a/',
             'by_animal': False,
             'file_ext': 'png',
         },
         'narrative': {
-            'trial_title': 'Draw the selected animal so that another participant can easily recognize its behavior',
+            'trial_title': 'Draw {} so that another participant can easily recognize its behavior',
             'stim_dir': 'img/cond_n/',
             'by_animal': True,
             'file_ext': 'gif',
         },
         'aesthetic': {
-            'trial_title': 'Draw the selected animal so that another participant will find your drawing pleasing to the eye',
+            'trial_title': 'Draw {} so that another participant will find your drawing pleasing to the eye',
             'stim_dir': 'img/cond_r_a/',
             'by_animal': False,
             'file_ext': 'png',
@@ -56,7 +56,15 @@ class C(BaseConstants):
     MIN_DRAWING_TIME = 10.0
 
 
-def get_condition_config(condition: str):
+def get_condition_config(condition: str, animal: str|None = None):
+    if condition not in C.CONDITION_CONFIG:
+        raise ValueError(f"Invalid condition: {condition}")
+    if animal is not None:
+        conf = C.CONDITION_CONFIG[condition].copy()
+        indef_article = 'an ' if animal[0] in 'aeiou' else 'a '
+        conf['trial_title'] = conf['trial_title'].format(indef_article + animal)  # type: ignore
+        return conf
+
     return C.CONDITION_CONFIG[condition]
 
 
@@ -171,7 +179,7 @@ def get_stimuli_for_round(drawing: Drawing) -> list[dict[str, object]]:
     selected_animal = drawing.animal
     selected_action = drawing.action
     condition = drawing.condition
-    condition_config = get_condition_config(condition)
+    condition_config = get_condition_config(condition, drawing.animal)
     stimuli = get_stimuli_set(selected_animal, selected_action, condition_config)
     shuffle(stimuli)
     return stimuli
@@ -282,7 +290,7 @@ class InstructionsCond(Page):
     
     @staticmethod
     def vars_for_template(player: Player):
-        condition_config = get_condition_config(player.participant.condition)
+        condition_config = get_condition_config(player.participant.condition, "deer")
         stimuli = get_stimuli_set('deer', 'lie', condition_config)
         # order stimuli so that the selected animal is first
         stimuli = sorted(stimuli, key=lambda x: (x['selected'], x['animal'], x['action']), reverse=True)
@@ -300,11 +308,17 @@ class InstructionsDraw(Page):
     
     @staticmethod
     def vars_for_template(player: Player):
-        condition_config = get_condition_config(player.participant.condition)
+        condition_config = get_condition_config(player.participant.condition, "deer")
         return dict(
             condition = player.participant.condition,
             page_title = condition_config['trial_title'],
         )
+
+class Ready(Page):
+    @staticmethod
+    # only display this page on the first round
+    def is_displayed(player: Player):
+        return player.round_number == 1
 
 
 class StimPage:
@@ -315,7 +329,7 @@ class StimPage:
         # get the stimuli for this round
         stimuli = get_stimuli_for_round(drawing)
         # get the condition config
-        condition_config = get_condition_config(player.participant.condition)
+        condition_config = get_condition_config(player.participant.condition, drawing.animal)
         return dict(
             page_title = condition_config['trial_title'],
             stimuli = stimuli,
@@ -344,8 +358,10 @@ class Draw(ScreenInfoMixin, Page):
 
     @staticmethod
     def vars_for_template(player: Player):
+        # get the current trial
+        drawing = get_current_trial(player)
         # get the condition config
-        condition_config = get_condition_config(player.participant.condition)
+        condition_config = get_condition_config(player.participant.condition, drawing.animal)
         # get the current trial
         return dict(
             page_title = condition_config['trial_title'],
@@ -384,6 +400,17 @@ class Draw(ScreenInfoMixin, Page):
                         complexity_met=complexity_requirement_met(drawing.svg, drawing.drawing_time),
                     )
                 }
+            elif data["event"] == "complexity_check":
+                # update drawing time
+                drawing.drawing_time = datetime.datetime.now().timestamp() - drawing.start_timestamp
+                # let the client know if the complexity requirement is met
+                return {
+                    player.id_in_group: dict(
+                        event='update_complexity',
+                        time_left=C.DRAWING_TIME - drawing.drawing_time,
+                        complexity_met=complexity_requirement_met(drawing.svg, drawing.drawing_time),
+                    )
+                }
             elif data["event"] == "drawing_complete":
                 drawing.end_timestamp = datetime.datetime.now().timestamp()
                 drawing.svg = base64.b64decode(data["drawing"]).decode('utf-8')
@@ -412,7 +439,7 @@ class ThankYou(Page):
             prolific_url = C.PROLIFIC_FALLBACK_URL if 'prolific_url' not in player.session.config else player.session.config['prolific_url'],
         )
 
-page_sequence = [Welcome, Consent, InputDevice, InstructionsCond, InstructionsDraw, Stimulus, Draw, ThankYou]
+page_sequence = [Welcome, Consent, InputDevice, InstructionsCond, InstructionsDraw, Ready, Stimulus, Draw, ThankYou]
 
 # data out
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
@@ -454,7 +481,7 @@ def custom_export(players):
 
         for drawing in Drawing.filter(participant=player.participant):
             print("exporting drawing: ", drawing.id)
-            condition_conf = get_condition_config(drawing.condition)
+            condition_conf = get_condition_config(drawing.condition, drawing.animal)
             yield [
                 player.participant.code,
                 player.prolific_id,

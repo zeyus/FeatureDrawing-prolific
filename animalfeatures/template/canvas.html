@@ -271,6 +271,9 @@
                     timeoutWarning.style.display = 'block';
                     timeoutWarning.querySelector('#time-left').innerText = Math.round(timeLeft);
                 }
+                liveSend({
+                    'event': 'complexity_check',
+                });
             }
         }, 1000);
     }
