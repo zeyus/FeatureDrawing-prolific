@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import DeclarativeMeta  # type: ignore
-from otree.api import BaseConstants, BaseSubsession, BaseGroup, BasePlayer, models, Page, ExtraModel  # type: ignore
+from otree.api import BaseConstants, BaseSubsession, BaseGroup, BasePlayer, models, Page, ExtraModel, widgets  # type: ignore
 from otree.models import Participant  # type: ignore
 from random import shuffle, randint
 import base64
@@ -95,11 +95,25 @@ class Player(BasePlayer, metaclass=AnnotationFreeMeta):
             [7, 'Other'],
         ]
     )  # type: ignore
+    drawing_skills: int = models.IntegerField(
+        label='I consider my drawing skills:',
+        choices=[
+            [0, 'Way below average'],
+            [1, 'A bit below average'],
+            [2, 'Average'],
+            [3, 'A bit above average'],
+            [4, 'Way above average'],
+        ],
+        widget=widgets.RadioSelectHorizontal
+    )  # type: ignore
 
     def field_display(self, name):
-        if name == 'input_device':
-            val = self.input_device
-            if val is None:
+        if name in ['input_device', 'drawing_skills']:
+            try:
+                val = self.__dict__[name]
+                if val is None:
+                    return "N/A"
+            except KeyError:
                 return "N/A"
         return super().field_display(name)
 
@@ -256,7 +270,7 @@ def complexity_requirement_met(svg: str, drawing_time: float) -> bool:
 # PAGES
 class InputDevice(Page):
     form_model = 'player'
-    form_fields = ['input_device']
+    form_fields = ['input_device', 'drawing_skills']
 
     @staticmethod
     def is_displayed(player: Player):
@@ -468,24 +482,37 @@ def custom_export(players):
         'window_height',
         'orientation',
         'input_device',
+        'drawing_skills',
         'svg',
     ]
 
     for player in players:
         # assign condition to player
         drawing = get_current_trial(player, 1)
-        if not hasattr(player, 'condition') or player.condition is None:
-            player.condition = drawing.condition
-        if 'condition' not in player.participant.vars or player.participant.vars['condition'] is None:
-            player.participant.vars['condition'] = drawing.condition
+        condition = ''
+        if hasattr(player, 'condition') and player.condition is not None and not player.condition == '':
+            condition = player.condition
+        elif 'condition' in player.participant.vars and player.participant.vars['condition'] is not None and not player.participant.vars['condition'] == '':
+            condition = player.participant.vars['condition']
+        elif hasattr(drawing, 'condition') and drawing.condition is not None and not drawing.condition == '':
+            condition = drawing.condition
+
+        # update all three conditons
+        player.condition = condition
+        player.participant.vars['condition'] = condition
+        drawing.condition = condition
+        
 
         for drawing in Drawing.filter(participant=player.participant):
             print("exporting drawing: ", drawing.id)
-            condition_conf = get_condition_config(drawing.condition, drawing.animal)
+            print("player condition: ", player.condition)
+            print("participant condition: ", player.participant.vars['condition'])
+            print("drawing condition: ", drawing.condition)
+            condition_conf = get_condition_config(condition, drawing.animal)
             yield [
                 player.participant.code,
                 player.prolific_id,
-                drawing.condition,
+                condition,
                 drawing.trial,
                 drawing.animal,
                 drawing.action,
@@ -505,6 +532,7 @@ def custom_export(players):
                 drawing.wy,
                 drawing.orientation,
                 player.field_display('input_device'),
+                player.field_display('drawing_skills'),
                 drawing.svg,
             ]
 

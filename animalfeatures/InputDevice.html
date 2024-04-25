@@ -1,11 +1,12 @@
 {{ block title }}
-    Quick question
+    Quick questions
 {{ endblock }}
 
 {{ block content }}
     <div class="container">
-        <p>Please select the input device (e.g. mouse, stylus, etc) you will be using to draw during this experiment:</p>
+        <p>Please select the input device (e.g. mouse, stylus, etc) you will be using to draw during this experiment and let us know a little about your drawing skills.</p>
         {{ formfield 'input_device' }}
+        {{ formfield 'drawing_skills' }}
     </div>
     <div class="d-flex justify-content-end">
         {{ next_button }}
