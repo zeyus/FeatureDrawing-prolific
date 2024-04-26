@@ -488,18 +488,21 @@ def custom_export(players):
         'svg',
     ]
 
-    completed_participants = []
+    # completed_participants = []
 
-    for player in players:
-        # assign condition to player
-        drawing = get_current_trial(player, 1)
-        condition = ''
-        if hasattr(player, 'condition') and player.condition is not None and not player.condition == '':
-            condition = player.condition
-        elif 'condition' in player.participant.vars and player.participant.vars['condition'] is not None and not player.participant.vars['condition'] == '':
-            condition = player.participant.vars['condition']
-        elif hasattr(drawing, 'condition') and drawing.condition is not None and not drawing.condition == '':
-            condition = drawing.condition
+    # for player in players:
+    #     if player.participant.id in completed_participants:
+    #         print("skipping already exported participant: ", player.participant.id)
+    #         continue
+    #     # assign condition to player
+    #     drawing = get_current_trial(player, 1)
+    #     condition = ''
+    #     if hasattr(player, 'condition') and player.condition is not None and not player.condition == '':
+    #         condition = player.condition
+    #     elif 'condition' in player.participant.vars and player.participant.vars['condition'] is not None and not player.participant.vars['condition'] == '':
+    #         condition = player.participant.vars['condition']
+    #     elif hasattr(drawing, 'condition') and drawing.condition is not None and not drawing.condition == '':
+    #         condition = drawing.condition
 
         # update all three conditons
         # player.condition = condition
@@ -507,41 +510,47 @@ def custom_export(players):
         # drawing.condition = condition
         
 
-        for drawing in Drawing.filter(participant=player.participant):
-            if player.participant.id in completed_participants:
-                continue
-            print("exporting drawing: ", drawing.id)
-            # print("player condition: ", player.condition)
-            # print("participant condition: ", player.participant.vars['condition'])
-            # print("drawing condition: ", drawing.condition)
-            condition_conf = get_condition_config(condition, drawing.animal)
-            yield [
-                player.participant.code,
-                player.prolific_id,
-                condition,
-                drawing.trial,
-                drawing.animal,
-                drawing.action,
-                f"{drawing.animal}_{drawing.action}.{condition_conf['file_ext']}",
-                drawing.drawing_time,
-                drawing.start_timestamp,
-                drawing.end_timestamp,
-                drawing.completed,
-                drawing.browser,
-                drawing.browser_version,
-                drawing.os,
-                drawing.os_version,
-                drawing.device,
-                drawing.device_brand,
-                drawing.device_model,
-                drawing.wx,
-                drawing.wy,
-                drawing.orientation,
-                player.field_display('input_device'),
-                player.field_display('drawing_skills'),
-                drawing.svg,
-            ]
-        completed_participants.append(player.participant.id)
+    for drawing in Drawing.filter():
+        print("exporting drawing: ", drawing.id)
+        player = drawing.participant.get_players()[-1]
+        condition = ''
+        if hasattr(player, 'condition') and player.condition is not None and not player.condition == '':
+            condition = player.condition
+        elif 'condition' in player.participant.vars and player.participant.vars['condition'] is not None and not player.participant.vars['condition'] == '':
+            condition = player.participant.vars['condition']
+        elif hasattr(drawing, 'condition') and drawing.condition is not None and not drawing.condition == '':
+            condition = drawing.condition
+        # print("player condition: ", player.condition)
+        # print("participant condition: ", player.participant.vars['condition'])
+        # print("drawing condition: ", drawing.condition)
+        condition_conf = get_condition_config(condition, drawing.animal)
+        yield [
+            player.participant.code,
+            player.prolific_id,
+            condition,
+            drawing.trial,
+            drawing.animal,
+            drawing.action,
+            f"{drawing.animal}_{drawing.action}.{condition_conf['file_ext']}",
+            drawing.drawing_time,
+            drawing.start_timestamp,
+            drawing.end_timestamp,
+            drawing.completed,
+            drawing.browser,
+            drawing.browser_version,
+            drawing.os,
+            drawing.os_version,
+            drawing.device,
+            drawing.device_brand,
+            drawing.device_model,
+            drawing.wx,
+            drawing.wy,
+            drawing.orientation,
+            player.field_display('input_device'),
+            player.field_display('drawing_skills'),
+            drawing.svg,
+        ]
+        # completed_participants.append(player.participant.id)
 
     # for drawing in Drawing.filter():
     #     print("exporting drawing: ", drawing.id)
