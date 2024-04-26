@@ -6,6 +6,7 @@ import base64
 import datetime
 from user_agents import parse  # type: ignore
 from user_agents.parsers import UserAgent  # type: ignore
+from typing import Generator, Any
 
 
 doc = """
@@ -107,7 +108,7 @@ class Player(BasePlayer, metaclass=AnnotationFreeMeta):
         widget=widgets.RadioSelectHorizontal
     )  # type: ignore
 
-    def field_display(self, name):
+    def field_display(self, name: str) -> str:
         if name in ['input_device', 'drawing_skills']:
             try:
                 val = self.__dict__[name]
@@ -121,7 +122,6 @@ class Player(BasePlayer, metaclass=AnnotationFreeMeta):
 class Drawing(ExtraModel, metaclass=AnnotationFreeMeta):
     # subsess: Subsession = models.Link(Subsession)
     participant: Participant = models.Link(Participant)
-    trial: int = models.IntegerField()
     svg: str = models.LongStringField(initial="")  # type: ignore
     drawing_time: float = models.FloatField(initial=0.0)  # type: ignore
     start_timestamp: float = models.FloatField(initial=0.0)  # type: ignore
@@ -460,7 +460,7 @@ page_sequence = [Welcome, Consent, InstructionsCond, InstructionsDraw, Ready, St
 # data out
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
 
-def custom_export(players):
+def custom_export(players: list[Player]) -> Generator[list[str | int | float | bool], Any, Any]:
     yield [
         'participant_code',
         'prolific_id',
@@ -508,25 +508,34 @@ def custom_export(players):
         # player.condition = condition
         # player.participant.vars['condition'] = condition
         # drawing.condition = condition
-        
+    player_cache: dict[str, dict[str, str]] = {}
 
     for drawing in Drawing.filter():
         print("exporting drawing: ", drawing.id)
-        player = drawing.participant.get_players()[-1]
-        condition = ''
-        if hasattr(player, 'condition') and player.condition is not None and not player.condition == '':
-            condition = player.condition
-        elif 'condition' in player.participant.vars and player.participant.vars['condition'] is not None and not player.participant.vars['condition'] == '':
-            condition = player.participant.vars['condition']
-        elif hasattr(drawing, 'condition') and drawing.condition is not None and not drawing.condition == '':
-            condition = drawing.condition
+        if drawing.participant.id not in player_cache:
+            draw_players = drawing.participant.get_players()
+            player_cache[drawing.participant.id] = {
+                'prolific_id': 'N/A',
+                'input_device': 'N/A',
+                'drawing_skills': 'N/A',
+            }
+            for p in draw_players:
+                # update values if they exist
+                if p.prolific_id is not None and not p.prolific_id == '' and p.prolific_id != 'N/A':
+                    player_cache[drawing.participant.id]['prolific_id'] = p.prolific_id
+                if p.input_device is not None and not p.input_device == '' and p.input_device != 'N/A':
+                    player_cache[drawing.participant.id]['input_device'] = p.field_display('input_device')
+                if p.drawing_skills is not None and not p.drawing_skills == '' and p.drawing_skills != 'N/A':
+                    player_cache[drawing.participant.id]['drawing_skills'] = p.field_display('drawing_skills')
+
+        condition = drawing.condition
         # print("player condition: ", player.condition)
         # print("participant condition: ", player.participant.vars['condition'])
         # print("drawing condition: ", drawing.condition)
         condition_conf = get_condition_config(condition, drawing.animal)
         yield [
-            player.participant.code,
-            player.prolific_id,
+            drawing.participant.code,
+            player_cache[drawing.participant.id]['prolific_id'],
             condition,
             drawing.trial,
             drawing.animal,
@@ -546,8 +555,8 @@ def custom_export(players):
             drawing.wx,
             drawing.wy,
             drawing.orientation,
-            player.field_display('input_device'),
-            player.field_display('drawing_skills'),
+            player_cache[drawing.participant.id]['input_device'],
+            player_cache[drawing.participant.id]['drawing_skills'],
             drawing.svg,
         ]
         # completed_participants.append(player.participant.id)
