@@ -488,6 +488,8 @@ def custom_export(players):
         'svg',
     ]
 
+    completed_participants = []
+
     for player in players:
         # assign condition to player
         drawing = get_current_trial(player, 1)
@@ -500,16 +502,18 @@ def custom_export(players):
             condition = drawing.condition
 
         # update all three conditons
-        player.condition = condition
-        player.participant.vars['condition'] = condition
-        drawing.condition = condition
+        # player.condition = condition
+        # player.participant.vars['condition'] = condition
+        # drawing.condition = condition
         
 
         for drawing in Drawing.filter(participant=player.participant):
+            if player.participant.id in completed_participants:
+                continue
             print("exporting drawing: ", drawing.id)
-            print("player condition: ", player.condition)
-            print("participant condition: ", player.participant.vars['condition'])
-            print("drawing condition: ", drawing.condition)
+            # print("player condition: ", player.condition)
+            # print("participant condition: ", player.participant.vars['condition'])
+            # print("drawing condition: ", drawing.condition)
             condition_conf = get_condition_config(condition, drawing.animal)
             yield [
                 player.participant.code,
@@ -537,6 +541,7 @@ def custom_export(players):
                 player.field_display('drawing_skills'),
                 drawing.svg,
             ]
+        completed_participants.append(player.participant.id)
 
     # for drawing in Drawing.filter():
     #     print("exporting drawing: ", drawing.id)
