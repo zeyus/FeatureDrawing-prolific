@@ -32,19 +32,19 @@ class C(BaseConstants):
     ANIMAL_ACTIONS = ['lie', 'run', 'stretch', 'walk']
     CONDITION_CONFIG = {
         'species_recognition': {
-            'trial_title': 'Draw {} so that another participant can easily recognize that it is this particular animal that you are communicating',
+            'trial_title': 'Make a line drawing of the selected {} so that another participant can easily recognize that it is this particular animal that you are communicating',
             'stim_dir': 'img/cond_r_a/',
             'by_animal': False,
             'file_ext': 'png',
         },
         'narrative': {
-            'trial_title': 'Draw {} so that another participant can easily recognize its behavior',
+            'trial_title': 'Make a line drawing of the selected {} so that another participant can easily recognize its behavior',
             'stim_dir': 'img/cond_n/',
             'by_animal': True,
             'file_ext': 'gif',
         },
         'aesthetic': {
-            'trial_title': 'Draw {} so that another participant will find your drawing pleasing to the eye',
+            'trial_title': 'Make a line drawing of the selected {} so that another participant will find your drawing pleasing to the eye',
             'stim_dir': 'img/cond_r_a/',
             'by_animal': False,
             'file_ext': 'png',
@@ -61,8 +61,8 @@ def get_condition_config(condition: str, animal: str|None = None):
         raise ValueError(f"Invalid condition: {condition}")
     if animal is not None:
         conf = C.CONDITION_CONFIG[condition].copy()
-        indef_article = 'an ' if animal[0] in 'aeiou' else 'a '
-        conf['trial_title'] = conf['trial_title'].format(indef_article + animal)  # type: ignore
+        # indef_article = 'an ' if animal[0] in 'aeiou' else 'a '
+        conf['trial_title'] = conf['trial_title'].format(animal)  # type: ignore
         return conf
 
     return C.CONDITION_CONFIG[condition]
@@ -268,15 +268,6 @@ def complexity_requirement_met(svg: str, drawing_time: float) -> bool:
 
 
 # PAGES
-class InputDevice(Page):
-    form_model = 'player'
-    form_fields = ['input_device', 'drawing_skills']
-
-    @staticmethod
-    def is_displayed(player: Player):
-        return player.round_number == 1
-
-
 class Welcome(Page):
 
     @staticmethod
@@ -441,6 +432,17 @@ class Draw(ScreenInfoMixin, Page):
                     )
                 }
 
+
+class InputDevice(Page):
+    form_model = 'player'
+    form_fields = ['input_device', 'drawing_skills']
+
+    @staticmethod
+    # only display this page on the last round
+    def is_displayed(player: Player):
+        return player.round_number == C.NUM_ROUNDS
+
+
 class ThankYou(Page):
     @staticmethod
     # only display this page on the last round
@@ -453,7 +455,7 @@ class ThankYou(Page):
             prolific_url = C.PROLIFIC_FALLBACK_URL if 'prolific_url' not in player.session.config else player.session.config['prolific_url'],
         )
 
-page_sequence = [Welcome, Consent, InputDevice, InstructionsCond, InstructionsDraw, Ready, Stimulus, Draw, ThankYou]
+page_sequence = [Welcome, Consent, InstructionsCond, InstructionsDraw, Ready, Stimulus, Draw, InputDevice, ThankYou]
 
 # data out
 # animal, action, condition, stim_img (animal_action{.gif if narrative else .png}), drawing_time, start_timestamp, end_timestamp, completed
