@@ -20,6 +20,10 @@ class Drawer {
     #pathStrokeWidth = "15"; // Edit this to change the stroke width
     #pathStrokeEnds = "round"; // Edit this to change the stroke ends
 
+    #drawingSource = '';
+    #mouseStarted = false;
+    #touchStarted = false;
+
     /**
      * The SVG element that needs
      * @param {HTMLElement} SVGElement An SVG element to draw in
@@ -41,16 +45,75 @@ class Drawer {
         this.#bufferSize = opts.bufferSize || this.#bufferSize;
         this.#readOnly = Object.prototype.hasOwnProperty.call(opts, 'readOnly') ? opts.readOnly : this.#readOnly;
         if (this.#readOnly !== true) {
-            this.#SVGElement.addEventListener('mousedown', (event) => { this.startDraw(event) });
-            this.#SVGElement.addEventListener('mousemove', (event) => { this.draw(event) });
+            this.#SVGElement.addEventListener('mousedown', (event) => {
+                const updated = this.setDeviceStart('mouse');
+                if (updated) {
+                    this.startDraw(event)
+                }
+            });
+            this.#SVGElement.addEventListener('mousemove', (event) => {
+                if (this.#mouseStarted) this.draw(event)
+            });
             this.#SVGElement.addEventListener('mouseup', () => {
-                this.stopDraw();
+                const updated = this.setDeviceEnd('mouse');
+                if (updated) {
+                    this.stopDraw()
+                }
             });
             this.#SVGElement.addEventListener('mouseleave', (event) => { 
-                this.stopDrawAndForceToEnd(event);
+                const updated = this.setDeviceEnd('mouse');
+                if (updated) {
+                    this.stopDrawAndForceToEnd(event);
+                }
+            });
+
+            this.#SVGElement.addEventListener('touchstart', (event) => {
+                const updated = this.setDeviceStart('touch');
+                if (updated) {
+                    this.startDraw(event.touches[0])
+                }
+            });
+
+            this.#SVGElement.addEventListener('touchmove', (event) => {
+                if (this.#touchStarted) this.draw(event.touches[0])
+            });
+
+
+            this.#SVGElement.addEventListener('touchend', () => {
+                const updated = this.setDeviceEnd('touch');
+                if (updated) {
+                    this.stopDraw()
+                }
+            });
+
+            this.#SVGElement.addEventListener('touchcancel', (event) => {
+                const updated = this.setDeviceEnd('touch');
+                if (updated) {
+                    this.stopDrawAndForceToEnd(event.touches[0]);
+                }
             });
         }
 
+    }
+
+    setDeviceStart(device) {
+        if (this.#drawingSource !== '') {
+            return false;
+        }
+        this.#drawingSource = device;
+        this.#mouseStarted = device === 'mouse';
+        this.#touchStarted = device === 'touch';
+        return true;
+    }
+
+    setDeviceEnd(device) {
+        if (this.#drawingSource === '' || this.#drawingSource !== device) {
+            return false;
+        }
+        this.#drawingSource = '';
+        this.#mouseStarted = false;
+        this.#touchStarted = false;
+        return true;
     }
 
     /**

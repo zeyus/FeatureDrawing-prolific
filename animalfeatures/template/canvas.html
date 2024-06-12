@@ -4,6 +4,11 @@
         margin-right: auto;
         width: 800px; /* EDIT TO CHANGE WIDTH */
         position: relative;
+        touch-action: none; /* disable scroll when drawing */
+    }
+
+    body {
+        overscroll-behavior: contain !important; /* disable pull-to-refresh */
     }
 
     /* #canvas button {
